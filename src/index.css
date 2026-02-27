@@ -1,0 +1,20 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #1e1e1e;
+  color: #f0f0f0;
+}
+
+/* Etat normal : tracet discret */
+#archipel_lazarus {
+  color : white;
+  stroke-opacity: 1;
+  transition: all 0.2 ease;
+}
+
+/* Hover : illumination */
+#archipel_lazarus:hover {
+  color: #15fad8; /* couleur glow */
+  stroke-opacity: 1;
+  filter: drop-shadow(0 0 6px #15fad8);
+}
