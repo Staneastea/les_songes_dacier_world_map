@@ -2,27 +2,22 @@ import { useState, useRef, useEffect } from "react";
 import RegionsSvg from "../assets/regions.svg?react"
 
 // Données
-import { regions } from "../data/regions";
-import { characters } from "../data/characters";
-import type { Character } from "../data/characters";
-import { events } from "../data/events";
-
-/* TypeScript commence ici */
-
-/* Identifiant d'une région */
-type RegionId = string;
-
-/* Position d'une région sur le map (en SVG) */
-type RegionPosition = {
-  x: number;
-  y: number;
-};
+import { regions } from "../data/regions.js";
+import { characters } from "../data/characters.js";
+import { events } from "../data/events.js";
+import type { Character } from "../data/characters.js";
+import type { CardEvent } from "../data/events.js";
 
 /* Onglet possible du menu */
 type ActiveTab = "Histoire" | "Personnages" | "Evènements clés" | null;
 
 /* Côté d'ouverture du menu */
 type OpenSide = "left" | "right";
+
+type RegionPosition = {
+  x: number;
+  y: number;
+};
 
 /* Composant principal */
 
@@ -40,7 +35,7 @@ const WorldMap = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>(null);
 
   // Element sélectionné 
-  const [selectedItem, setSelectedItem] = useState<Character | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Character | CardEvent | null>(null);
 
   // Côté d'ouverture (gauche/droite)
   const [openSide, setOpenSide] = useState<OpenSide>("right");
@@ -201,7 +196,7 @@ const WorldMap = () => {
             width: "220px",
           }}
         >
-          <strong>{regions[selectedRegion]?.name ?? selectedRegion}</strong>
+          <strong>{regions[selectedRegion as keyof typeof regions]?.name ?? selectedRegion}</strong>
           
           {/* ONGLETS */}
             <button
@@ -310,11 +305,11 @@ const WorldMap = () => {
 
             left: openSide === "right"
               ? `${menuRect.right - containerRef.current.getBoundingClientRect().left + 12}px`
-              : "undefined",
+              : undefined,
             right: openSide === "left"
               ? `${
                   containerRef.current.getBoundingClientRect().right - menuRect.left + 12}px`
-              : "undefined",
+              : undefined,
 
             width : "180px",
             padding: "8px",
@@ -325,7 +320,7 @@ const WorldMap = () => {
         >
           <strong>{selectedItem.name}</strong>
 
-          {hasImage && (
+          {hasImage ? (
             <img
               src={selectedItem.image}
               alt={selectedItem.name}
@@ -351,6 +346,8 @@ const WorldMap = () => {
           >
             Pas d'image disponible
           </div>
+          )}
+        </div>
       )}
 
 
@@ -362,23 +359,21 @@ const WorldMap = () => {
             left: 0,
             width: "100%",
             height: "100%",
-            pointerEvents: "none", // Pour que le SVG ne gêne pas les interactions
+            pointerEvents: "none",
           }}
-        >
-            <line
-              /* Point de départ : centre de la région */
-              x1={`${(regionPosition.x / 4104) * 100}%`}
-              y1={`${(regionPosition.y / 1640) * 100}%`}
-
+        >       
+          <line
+            /* Point de départ : centre de la région */
+            x1={`${(regionPosition.x / 4104) * 100}%`}
+            y1={`${(regionPosition.y / 1640) * 100}%`}
               /* Point d'arrivée : bord du menu */
-              x2={
-                openSide === "right"
-                  ? `${(menuRect.right / window.innerWidth) * 100 + 1.5}%`
-                  : `${(menuRect.right / window.innerWidth) * 100 + 1.5}%`
-              }
-              y2={`${((menuRect.top / window.innerHeight) * 100)}%`}
-              stroke="#0f172a"
-              strokeWidth="0.5"
+            x2={
+              openSide === "right"
+                ? `${(menuRect.right / window.innerWidth) * 100 + 1.5}%`
+                : `${(menuRect.right / window.innerWidth) * 100 + 1.5}%`
+            }
+            y2={`${((menuRect.top / window.innerHeight) * 100)}%`}
+            stroke="#0f172a"              strokeWidth="0.5"
             />
         </svg>
       )}
