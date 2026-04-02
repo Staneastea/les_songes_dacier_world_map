@@ -6,14 +6,14 @@ body {
 }
 
 /* Etat normal : tracet discret */
-#archipel_lazarus {
+#archipel_lezrus {
   color : white;
   stroke-opacity: 1;
   transition: all 0.2 ease;
 }
 
 /* Hover : illumination */
-#archipel_lazarus:hover {
+#archipel_lezrus:hover {
   color: #15fad8; /* couleur glow */
   stroke-opacity: 1;
   filter: drop-shadow(0 0 6px #15fad8);

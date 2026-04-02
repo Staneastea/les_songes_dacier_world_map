@@ -127,8 +127,8 @@ const WorldMap = () => {
 
       {/* Carte du monde en background */}
       <img
-          src = "/monde.svg"
-          alt = "alt"
+          src = "/monde.png"
+          alt = "Carte du monde"
           style = {{ width : "100%", display : "block"}}
         />
 
@@ -140,29 +140,32 @@ const WorldMap = () => {
           left: 0,
           width: "100%",
           height: "100%",
-          transform : "translateX(1px)"
         }}
 
         // CLIC
 
         onClick = {(e) => {
-          // Si on clique sur le path
-          if (e.target instanceof SVGPathElement) {
 
-            // Récupère la boîte du path
-            const bbox = e.target.getBBox();
+          // On remonte dans les parents juqu'à trouver un élément avec un id (les paths des régions ont un id correspondant à leur nom)
+          const target = (e.target as Element).closest("[id]");
+
+          // On vérifie que la cible existe, a un id, et que ce n'est pas le fond
+          if (target && target.id && target.id !== "Monde 1") {
+
+            // On récupère les dimensions et la position de la région cliquée
+            const bbox = (target as SVGGraphicsElement).getBoundingClientRect();
 
             // Centre de la région
             const centerX = bbox.x + bbox.width / 2;
             const centerY = bbox.y + bbox.height / 2;
 
             // Largeur totale du SVG (viewBox)
-            const MAP_WIDTH = 4104;
+            const MAP_WIDTH = 4096;
 
             setOpenSide(centerX < MAP_WIDTH / 2 ? "right" : "left");
 
             // On stocke son id comme région selectionnée
-            setSelectedRegion(e.target.id);
+            setSelectedRegion(target.id);
             setRegionPosition({ x: centerX, y: centerY });
           }
         }}
@@ -278,7 +281,6 @@ const WorldMap = () => {
                         style={{ cursor: "pointer"}}
                         onClick={() =>
                           setSelectedItem({
-                            type: "event",
                             ...event,
                           })
                         }
