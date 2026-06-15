@@ -3,13 +3,15 @@ import '../styles/layout.css'
 
 function Layout ({ children }: { children: ReactNode }) {
     return (
-        <div>
+        // La div principale prend toute la hauteur de l'écran
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
             <header>
                 <h1>Univers JDR</h1>
             </header>
 
-            <main>
-                {children} {/*Ce que tu mets à l'intérieur du composant quand tu l'utiles*/}
+            {/* Le main prend tout l'espace restant après le header */}
+            <main style={{ flex: 1, overflow: "hidden", padding: 0 }}>
+                {children}
             </main> 
         </div>
     )

@@ -1,385 +1,213 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import RegionsSvg from "../assets/regions.svg?react"
 
 // Données
-import { regions } from "../data/regions.js";
 import { characters } from "../data/characters.js";
 import { events } from "../data/events.js";
 import type { Character } from "../data/characters.js";
 import type { CardEvent } from "../data/events.js";
 
-/* Onglet possible du menu */
-type ActiveTab = "Histoire" | "Personnages" | "Evènements clés" | null;
-
-/* Côté d'ouverture du menu */
-type OpenSide = "left" | "right";
-
-type RegionPosition = {
-  x: number;
-  y: number;
-};
-
 /* Composant principal */
-
 const WorldMap = () => {
 
   /** States **/
 
-  // Région sélectionnée
+  // Région sélectionnée (son id)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
-  // Position centrale de la région sélectionnée (pour positionner le menu)
-  const [regionPosition, setRegionPosition] = useState<RegionPosition | null>(null);
+  // Niveau de zoom (1 = normal)
+  const [scale, setScale] = useState<number>(1);
 
-  // Onglet ouvert dans le menu
-  const [activeTab, setActiveTab] = useState<ActiveTab>(null);
+  // Déplacement de la carte en pixels (x = horizontal, y = vertical)
+  const [translate, setTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Element sélectionné 
-  const [selectedItem, setSelectedItem] = useState<Character | CardEvent | null>(null);
+    // true = le menu est ouvert, false = fermé
+    const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
-  // Côté d'ouverture (gauche/droite)
-  const [openSide, setOpenSide] = useState<OpenSide>("right");
-
-  // Dimensions réelles du menu (pour placer les cartes)
-  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
-  
   /** REFS **/
 
-  // Référence vers le menu
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  
-  // Référence vers le conteneur principal
+  // Référence vers le conteneur principal (la div qui englobe tout)
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  /** EFFECTS **/
+  /** FONCTIONS **/
 
-  // Fermer le menu + cartes quand on clique en dehors
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
-        setSelectedRegion(null);
-        setSelectedItem(null);
-        setActiveTab(null);
-      }
-    };
-
-    // On écoute les clics sur toute la page
-    document.addEventListener("mousedown", handleClickOutside);
-
-    // Nettoyage quand le composant est demonté
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, []);
-
-  /* Récupère la position du menu quand il apparait / change */
-  useEffect(() => {
-    if (menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      setMenuRect(rect); 
-    }
-  }, [selectedRegion, activeTab]);
-
-  /* Données Dérivées */
-
-  // Personnage de la région sélectionnée
-  const regionCharacters = characters.filter(
-    (char) => char.regionId === selectedRegion
-  );
-
-  // Evènements de la région sélectionnée
-  const regionEvents = events.filter(
-    (event) => event.regionId === selectedRegion
-  );
-  
-  // Est-ce que l'élément sélectionné a une image ?
-  const hasImage = Boolean(selectedItem?.image);
-
-  /** STYLES **/
-
-  const tabStyle = (tab: Exclude<ActiveTab, null>) => ({
-    background: activeTab === tab ? "#2563eb" : "#2d3e5a",
-    color: "white",
-    border: "none",
-    padding: "8px 10px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    textAlign: "left" as const,
-  });
-
-  const slideStyle = (isOpen: boolean) => ({
-    maxHeight: isOpen ? "300px" : "0px",
-    opacity: isOpen ? 1 : 0,
-    overflow: "hidden",
-    transition: "all 1s ease",
-  });
+  // Remet la carte à son état initial (zoom = 1, pas de déplacement)
+  const resetZoom = () => {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+    setSelectedRegion(null);
+    // fermeture du menu quand on dézoome
+    setIsMenuOpen(false);
+  };
 
   /** Render **/
-
   return (
     <div
-      ref={containerRef}
-      style={{ position: "relative", width: "100%", overflow: "hidden" }}
+      style={{ 
+        // Flexbox : carte et menu côte à côte
+        display: "flex", 
+        width: "100%",
+        height: "100vh", 
+        overflow: "hidden", // Empêche les scrollbars pendant le zoom
+      }}
     >
-
-      {/* Carte du monde en background */}
-      <img
-          src = "/monde.png"
-          alt = "Carte du monde"
-          style = {{ width : "100%", display : "block"}}
-        />
-
-      {/* SVG des régions par dessus (pour les interactions) */}
-      <RegionsSvg
+      {/* Div qui contient uniquement la carte*/}
+      <div
+        ref={containerRef}
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
+          // Prend tout l'espace disponible
+          flex: 1,
+          position: "relative", // Permet de positionner les éléments absolus à l'intérieur
+          overflow: "hidden", // Cache les parties de la carte qui dépassent pendant le zoom
+          height: "100vh",
         }}
+      >
 
-        // CLIC
-
-        onClick = {(e) => {
-
-          // On remonte dans les parents juqu'à trouver un élément avec un id (les paths des régions ont un id correspondant à leur nom)
-          const target = (e.target as Element).closest("[id]");
-
-          // On vérifie que la cible existe, a un id, et que ce n'est pas le fond
-          if (target && target.id && target.id !== "Monde 1") {
-
-            // On récupère les dimensions et la position de la région cliquée
-            const bbox = (target as SVGGraphicsElement).getBoundingClientRect();
-
-            // Centre de la région
-            const centerX = bbox.x + bbox.width / 2;
-            const centerY = bbox.y + bbox.height / 2;
-
-            // Largeur totale du SVG (viewBox)
-            const MAP_WIDTH = 4096;
-
-            setOpenSide(centerX < MAP_WIDTH / 2 ? "right" : "left");
-
-            // On stocke son id comme région selectionnée
-            setSelectedRegion(target.id);
-            setRegionPosition({ x: centerX, y: centerY });
-          }
-        }}
-      />
-
-      {/* MENU 'visible si sélection */}
-      {selectedRegion && regionPosition &&(
-        <div
-          ref={menuRef}
-          style={{
-            position: "absolute",
-
-            // Placement de menu
-            top: `${(regionPosition.y / 1640) * 100}%`,
-            left:
-              openSide === "right"
-                ? `${(regionPosition.x / 4104) * 100}%`
-                : "auto",
-            right:
-              openSide === "left"
-                ? `${100 - (regionPosition.x / 4104) * 100}%`
-                : "auto",
-            transform: 
-              openSide === "right"
-                ? "translate(20px, -100%)"
-                : "translate(-20px, -100%)",
-            background: "#0f172a",
-            color: "white",
-            padding: "12px 16px",
-            borderRadius: "8px",
-            width: "220px",
-          }}
-        >
-          <strong>{regions[selectedRegion as keyof typeof regions]?.name ?? selectedRegion}</strong>
-          
-          {/* ONGLETS */}
-            <button
-              style ={tabStyle("Histoire")}
-              onClick={() => setActiveTab(activeTab === "Histoire" ? null : "Histoire")}>
-                Histoire
-            </button>
-
-            <div style={slideStyle(activeTab === "Histoire")}>
-              {activeTab === "Histoire" && (
-                <div
-                  style ={{
-                    marginTop: "6px",
-                    paddingLeft: "8px",
-                    fontSize: "14px",
-                    color: "#e5e7eb",
-                  }}
-                >
-                  <p>
-                    Contenu de l'histoire de la région...
-                    <br /><br />
-                    Ce texte est un exemple pour montrer où le contenu de l'histoire apparaîtrait.
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <button
-              style ={tabStyle("Personnages")}
-              onClick={() => setActiveTab(activeTab === "Personnages" ? null : "Personnages")}>
-                Personnages
-            </button>
-
-            <div style={slideStyle(activeTab === "Personnages")}>
-              {activeTab === "Personnages" && (
-                <div
-                  style ={{
-                    marginTop: "6px",
-                    paddingLeft: "8px",
-                    fontSize: "14px",
-                    color: "#e5e7eb",
-                  }}
-                >
-                  <ul style = {{paddingLeft: "16px", marginTop: "4px"}}>
-                   {regionCharacters.map((char) => (
-                      <li
-                        key={char.id}
-                        onClick={() => setSelectedItem(char)}
-                        style={{ cursor: "pointer"}}
-                      >
-                        {char.name}
-                      </li>
-                   ))}
-                   </ul>
-                </div>
-              )}
-            </div>
-
-            <button
-              style ={tabStyle("Evènements clés")}
-              onClick={() => setActiveTab(activeTab === "Evènements clés" ? null : "Evènements clés")}>
-                Evènements clés
-            </button>
-
-            <div style={slideStyle(activeTab === "Evènements clés")}>
-              {activeTab === "Evènements clés" && (
-                <div
-                  style ={{
-                    marginTop: "6px",
-                    paddingLeft: "8px",
-                    fontSize: "14px",
-                    color: "#e5e7eb",
-                  }}
-                >
-                  <ul style = {{paddingLeft: "16px", marginTop: "4px"}}>
-                    {regionEvents.map((event) => (
-                      <li
-                        key={event.id}
-                        style={{ cursor: "pointer"}}
-                        onClick={() =>
-                          setSelectedItem({
-                            ...event,
-                          })
-                        }
-                      >
-                        {event.name}
-                      </li>
-                   ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>       
-      )}
-
-      {/* Carte détaillee */}
-      {selectedItem && menuRect && containerRef.current &&(
-        <div
-          style={{
-            position: "absolute",
-            top:  `${
-              menuRect.top - containerRef.current.getBoundingClientRect().top + menuRect.height / 2
-            }px`,
-            transform: "translateY(-50%)",
-
-            left: openSide === "right"
-              ? `${menuRect.right - containerRef.current.getBoundingClientRect().left + 12}px`
-              : undefined,
-            right: openSide === "left"
-              ? `${
-                  containerRef.current.getBoundingClientRect().right - menuRect.left + 12}px`
-              : undefined,
-
-            width : "180px",
-            padding: "8px",
-            background: "#020617",
-            borderRadius: "8px",
-            color: "white"
-          }}
-        >
-          <strong>{selectedItem.name}</strong>
-
-          {hasImage ? (
-            <img
-              src={selectedItem.image}
-              alt={selectedItem.name}
-              style={{
-                width: "100%",
-                height: "100px",
-                objectFit: "cover",
-                marginTop: "6px",
-                borderRadius: "6px",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                height: "100px",
-                background: "#020617",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#94a3b8",
-                fontSize: "12px",
-              }}
+        {/* Bouton dézoomer — visible uniquement quand on est zoomé */}
+        {scale > 1 && (
+          <button
+            onClick={resetZoom}
+            style={{
+              position: "fixed",
+              top: "20px",
+              right: "20px",
+              zIndex: 999,
+              background: "#0f172a",
+              color: "white",
+              border: "none",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
           >
-            Pas d'image disponible
-          </div>
-          )}
-        </div>
-      )}
+            ← Dézoomer
+          </button>
+        )}
 
-
-      {selectedRegion && regionPosition && menuRect && (
-        <svg
+        {/* Div zoomable — contient la carte et les régions */}
+        <div
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            pointerEvents: "none",
+            // scale() agrandit la carte
+            // translate() la déplace pour centrer la région cliquée
+            transform: `scale(${scale}) translate(${translate.x}px, ${translate.y}px)`,
+
+            // Le zoom part du centre de la carte
+            transformOrigin: "center center",
+
+            // Animation fluide de 0.6 secondes
+            transition: "transform 0.6s ease",
           }}
-        >       
-          <line
-            /* Point de départ : centre de la région */
-            x1={`${(regionPosition.x / 4104) * 100}%`}
-            y1={`${(regionPosition.y / 1640) * 100}%`}
-              /* Point d'arrivée : bord du menu */
-            x2={
-              openSide === "right"
-                ? `${(menuRect.right / window.innerWidth) * 100 + 1.5}%`
-                : `${(menuRect.right / window.innerWidth) * 100 + 1.5}%`
-            }
-            y2={`${((menuRect.top / window.innerHeight) * 100)}%`}
-            stroke="#0f172a"              strokeWidth="0.5"
-            />
-        </svg>
-      )}
-  </div>
+        >
+
+          {/* Image de fond de la carte */}
+          <img
+            src="/monde.png"
+            alt="Carte du monde"
+            style={{ 
+              width: "100%",
+              display: "block", // Élimine les petits espaces en bas de l'image
+            }}
+          />
+
+          {/* SVG des régions par dessus — gère les interactions */}
+          <RegionsSvg
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+            }}
+
+            onClick={(e) => {
+              const target = (e.target as Element).closest("path[id], g[id]");
+
+              if (target && target.id) {
+                setSelectedRegion(target.id);
+                setIsMenuOpen(true);
+
+                const bbox = (target as SVGGraphicsElement).getBoundingClientRect();
+                const container = containerRef.current!.getBoundingClientRect();
+
+                // Centre de la région et du conteneur en coordonnées écran
+                const regionCenterX = bbox.x + bbox.width / 2;
+                const regionCenterY = bbox.y + bbox.height / 2;
+                const containerCenterX = container.left + container.width / 2;
+                const containerCenterY = container.top + container.height / 2;
+
+                // Taille naturelle de la région (sans le zoom déjà appliqué)
+                const naturalWidth = bbox.width / scale;
+                const naturalHeight = bbox.height / scale;
+
+                const zoomX = window.innerWidth / naturalWidth;
+                const zoomY = window.innerHeight / naturalHeight;
+                const zoomLevel = Math.max(Math.min(zoomX, zoomY, 4) * 0.8, 1.5);
+
+                // Position naturelle du centre de la région, relative au centre du conteneur
+                // (permet de recalculer correctement même si on est déjà zoomé)
+                const naturalRelX = (regionCenterX - containerCenterX) / scale - translate.x;
+                const naturalRelY = (regionCenterY - containerCenterY) / scale - translate.y;
+
+                const viewportCenterX = window.innerWidth / 2;
+                const viewportCenterY = window.innerHeight / 2;
+
+                // Translate pour que le centre de la région arrive au centre du viewport
+                const translateX = (viewportCenterX - containerCenterX) / zoomLevel - naturalRelX;
+                const translateY = (viewportCenterY - containerCenterY) / zoomLevel - naturalRelY;
+
+                setScale(zoomLevel);
+                setTranslate({ x: translateX, y: translateY });
+              }
+            }}
+          />
+        </div>
+
+      </div>
+
+      {/* Menu latéral - glisse depuis la droite quand une région est sélectionnée */}
+      <div
+        style={{
+          // Le menu glisse depuis la droite
+          // Si isMenuOpen = true > largeur normale
+          // Si isMenuOpen = false > largeur 0 et overflow caché
+          width: isMenuOpen ? "300px" : "0",
+          overflow: "hidden",
+
+          // Animation fluide
+          transition: "transform 0.4s ease",
+
+          // Style du menu
+          background: "#0f172a",
+          color: "white",
+          padding: isMenuOpen ? "24px" : "0", // Padding seulement quand le menu est ouvert
+          overflowY: "hidden", // Permet de scroller si le contenu dépasse la hauteur
+
+          // Toujours présent dans le DOM mais caché
+          flexShrink: 0,
+        }}
+      >
+        {/* Nom de la région sélectionnée */}
+        <h2 style={{ marginTop: 0 }}>
+          {selectedRegion ?? ""}
+        </h2>
+
+        {/* Bouton de fermeture du menu */}
+        <button
+          onClick={resetZoom}
+          style={{
+            background: "transparent",
+            color: "white",
+            border: "1px solid white",
+            padding: "4px 12px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            marginBottom: "16px",
+          }}
+        >
+          X Fermer
+        </button>
+      </div>
+    </div>
   );
 };
 

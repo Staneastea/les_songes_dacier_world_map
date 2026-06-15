@@ -1,3 +1,9 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
@@ -17,4 +23,16 @@ body {
   color: #15fad8; /* couleur glow */
   stroke-opacity: 1;
   filter: drop-shadow(0 0 6px #15fad8);
+}
+
+/* Toutes les régions — état normal */
+path[id]:not([id="Monde 1"]), g[id] {
+  cursor: pointer;
+  pointer-events: all;
+  transition: fill 0.2s ease;
+}
+
+/* Au survol — on colorie la région */
+path[id]:not([id="Monde 1"]):hover, g[id]:hover {
+  fill: rgba(255, 242, 60, 0.959) !important;
 }
